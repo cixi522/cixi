@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>3D 圣诞树 - 蓝色粒子飘雪</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #000;
+      font-family: 'Arial', sans-serif;
+    }
+    canvas {
+      display: block;
+    }
+    .text {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #FFD700;
+      font-size: clamp(1.5em, 5vw, 3em);
+      font-style: italic;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.7), 0 0 20px rgba(255, 215, 0, 0.5);
+      pointer-events: none;
+      z-index: 10;
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% {
+        transform: translate(-50%, -50%) translateY(0);
+      }
+      50% {
+        transform: translate(-50%, -50%) translateY(-15px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="text">Merry Christmas</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.min.js"></script>
+
+  <script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    document.body.appendChild(renderer.domElement);
+
+    camera.position.z = 5;
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 3;
+    controls.maxDistance = 10;
+    controls.maxPolarAngle = Math.PI / 2;
+
+    // 👉 添加触摸支持
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN
+    };
+
+    // 👉 禁止长按弹出菜单
+    document.body.addEventListener('contextmenu', e => e.preventDefault());
+
+    // 灯光
+    const ambientLight = new THREE.AmbientLight(0x404040, 1);
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // 创建圣诞树（略，保持不变）
+    function createChristmasTree() {
+      const tree = new THREE.Group();
+      const trunkGeometry = new THREE.CylinderGeometry(0.1, 0.1, 3, 16);
+      const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.position.y = 0;
+      tree.add(trunk);
+
+      const layers = [
+        { radius: 1.5, height: 1, y: 0 },
+        { radius: 1.2, height: 1, y: 1 },
+        { radius: 0.9, height: 1, y: 2 }
+      ];
+
+      layers.forEach((layer, i) => {
+        const coneGeometry = new THREE.ConeGeometry(layer.radius, layer.height, 16);
+        const coneMaterial = new THREE.MeshPhongMaterial({
+          color: 0x87CEEB,
+          shininess: 30,
+          transparent: true,
+          opacity: 0.9
+        });
+        const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+        cone.rotation.y = Math.PI / 2;
+        cone.position.y = layer.y;
+        cone.position.z = 0;
+        cone.scale.set(1, 1, 1.1);
+        tree.add(cone);
+      });
+
+      const starGeometry = new THREE.SphereGeometry(0.3, 12, 12);
+      const starMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, emissive: 0xFFD700 });
+      const star = new THREE.Mesh(starGeometry, starMaterial);
+      star.position.y = 2.5;
+      star.rotation.x = Math.PI / 2;
+      tree.add(star);
+
+      const ballPositions = [
+        { x: 0.5, y: 1.2, z: 0.2 }, { x: -0.5, y: 1.2, z: -0.2 },
+        { x: 0.3, y: 0.2, z: 0.1 }, { x: -0.3, y: 0.2, z: -0.1 },
+        { x: 0.2, y: -0.8, z: 0.3 }, { x: -0.2, y: -0.8, z: -0.3 }
+      ];
+
+      ballPositions.forEach(pos => {
+        const ballGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const ballMaterial = new THREE.MeshPhongMaterial({
+          color: pos === ballPositions[0] || pos === ballPositions[1] ? 0xFF0000 : 0xFFD700,
+          emissive: 0x000000,
+          shininess: 80
+        });
+        const ball = new THREE.Mesh(ballGeometry, ballMaterial);
+        ball.position.set(pos.x, pos.y, pos.z);
+        tree.add(ball);
+      });
+
+      return tree;
+    }
+
+    // 雪花粒子（略）
+    function createSnowParticles() {
+      const particles = [];
+      const particleCount = 200;
+      for (let i = 0; i < particleCount; i++) {
+        const particleGeometry = new THREE.SphereGeometry(0.03, 8, 8);
+        const particleMaterial = new THREE.MeshBasicMaterial({
+          color: 0x00AFFF,
+          transparent: true,
+          opacity: 0.8
+        });
+        const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+        particle.position.set(
+          Math.random() * 4 - 2,
+          Math.random() * 10 + 5,
+          Math.random() * 4 - 2
+        );
+        particle.velocityY = -0.01 - Math.random() * 0.02;
+        particle.velocityX = (Math.random() - 0.5) * 0.01;
+        particles.push(particle);
+        scene.add(particle);
+      }
+      return particles;
+    }
+
+    const snowParticles = createSnowParticles();
+    const tree = createChristmasTree();
+    scene.add(tree);
+
+    function animate() {
+      requestAnimationFrame(animate);
+      snowParticles.forEach(particle => {
+        particle.position.y += particle.velocityY;
+        particle.position.x += particle.velocityX;
+        if (particle.position.y < -1) {
+          particle.position.y = 10;
+          particle.position.x = Math.random() * 4 - 2;
+        }
+      });
+      tree.rotation.y += 0.005;
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+  </script>
+</body>
+</html>
